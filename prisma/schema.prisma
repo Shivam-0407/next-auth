@@ -50,3 +50,25 @@ model User {
 
   @@map("users")
 }
+
+model VerificationToken {
+  id    String @id @default(cuid())
+  email String
+  token String @unique
+
+  expires DateTime
+
+  // only 1 unique token for a specific email
+  @@unique([email, token])
+}
+
+model PasswordResetToken {
+  id    String @id @default(cuid())
+  email String
+  token String @unique
+
+  expires DateTime
+
+  // only 1 unique token for a specific email
+  @@unique([email, token])
+}
