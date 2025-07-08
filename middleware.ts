@@ -22,6 +22,8 @@ export default auth((req) => {
 
   if (isAuthRoute) {
     if (isLoggedIn) {
+      // this is the spot where we redirect the user after successfull sign-in
+
       // whenever we're creating new URL , due the 2nd argument we can create the full link
       // i.e http://localhost:3000/DEFAULT_LOGIN_REDIRECT
       return Response.redirect(new URL(DEFAULT_LOGIN_REDIRECT, nextUrl));
