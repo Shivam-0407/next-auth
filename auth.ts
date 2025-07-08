@@ -8,9 +8,11 @@ import { db } from "./lib/db";
 import { LoginSchema } from "./schemas";
 import { getUserByEmail, getUserByID } from "./data/users";
 import { UserRole } from "@prisma/client";
+import { getTwoFactorConfirmationByUserId } from "./data/two-factor-confirmation";
 
 export type ExtendedUser = DefaultSession["user"] & {
   role: UserRole;
+  isTwoFactorEnabled: boolean;
 };
 
 declare module "next-auth" {
@@ -78,20 +80,35 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   callbacks: {
     async signIn({ user, account }) {
-
       //Allow Oauth without verification email
       if (account?.provider !== "credentials") {
         return true;
       }
 
+      console.log("credentials provider ", user);
+
       const existingUser = await getUserByID(user.id);
 
       // Prevent sign-in without verfication
       if (!existingUser?.emailVerified) {
+        console.log("ho email not verified !! ");
         return false;
       }
 
       //Todo: Add 2FA
+      if (existingUser.isTwoFactorEnabled) {
+        const twoFactorConfirmation = await getTwoFactorConfirmationByUserId(
+          existingUser.id
+        );
+
+        if (!twoFactorConfirmation) return false;
+
+        // Delete two-factor confirmation for next sign in
+        await db.twoFactorConfirmation.delete({
+          where: { id: twoFactorConfirmation.id },
+        });
+      }
+      console.log("rabbit here !!");
       return true;
     },
     async session({ token, session }) {
@@ -101,6 +118,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
       if (token.role && session.user) {
         session.user.role = token.role as UserRole;
+      }
+
+      if (session.user) {
+        session.user.isTwoFactorEnabled = token.isTwoFactorEnabled as boolean;
       }
 
       return session;
@@ -113,6 +134,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       const existingUser = await getUserByID(token.sub);
 
       token.role = existingUser?.role;
+      token.isTwoFactorEnabled = existingUser?.isTwoFactorEnabled;
 
       return token;
     },
