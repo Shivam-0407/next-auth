@@ -9,10 +9,12 @@ import { LoginSchema } from "./schemas";
 import { getUserByEmail, getUserByID } from "./data/users";
 import { UserRole } from "@prisma/client";
 import { getTwoFactorConfirmationByUserId } from "./data/two-factor-confirmation";
+import { getAccountByUserId } from "./data/accounts";
 
 export type ExtendedUser = DefaultSession["user"] & {
   role: UserRole;
   isTwoFactorEnabled: boolean;
+  isOAuth: boolean;
 };
 
 declare module "next-auth" {
@@ -85,13 +87,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         return true;
       }
 
-      console.log("credentials provider ", user);
-
       const existingUser = await getUserByID(user.id);
 
       // Prevent sign-in without verfication
       if (!existingUser?.emailVerified) {
-        console.log("ho email not verified !! ");
         return false;
       }
 
@@ -108,7 +107,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           where: { id: twoFactorConfirmation.id },
         });
       }
-      console.log("rabbit here !!");
       return true;
     },
     async session({ token, session }) {
@@ -121,6 +119,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       }
 
       if (session.user) {
+        session.user.name = token.name;
+        session.user.email = token.email as string;
+        session.user.isOAuth = token.isOAuth as boolean;
         session.user.isTwoFactorEnabled = token.isTwoFactorEnabled as boolean;
       }
 
@@ -133,6 +134,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
       const existingUser = await getUserByID(token.sub);
 
+      if (!existingUser) {
+        return token;
+      }
+      const existingAccount = await getAccountByUserId(existingUser?.id);
+
+      token.isOAuth = !!existingAccount;
+      token.name = existingUser?.name;
+      token.email = existingUser?.email;
       token.role = existingUser?.role;
       token.isTwoFactorEnabled = existingUser?.isTwoFactorEnabled;
 
