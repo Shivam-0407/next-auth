@@ -20,8 +20,8 @@ export default function Home() {
           🔒 Auth
         </div>
         <p className="text-white text-lg">A simple authentication service</p>
-        <LoginButton>
-          <Button variant="secondary" size={"lg"} >
+        <LoginButton asChild>
+          <Button variant="secondary" size={"lg"}>
             Sign In
           </Button>
         </LoginButton>
